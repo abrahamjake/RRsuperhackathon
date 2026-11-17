@@ -1,0 +1,11 @@
+metric,value
+balls,200961.0
+matches,867.0
+pressure_balls,47896.0
+eligible_batters,124.0
+eligible_bowlers,134.0
+brier,0.177
+close_pressure_pct,93.2
+close_normal_pct,53.1
+wkt_pressure_pct,6.29
+wkt_normal_pct,5.4

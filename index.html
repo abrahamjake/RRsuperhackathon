@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PULSE — Most Reliable Players Under Pressure | SupeRR Selector Season 2</title>
+<meta name="description" content="PULSE: a statistical framework ranking the top 10 T20 batters and bowlers under pressure (IPL 2022-26 and T20Is).">
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<style>
+:root{
+  --font-anthropic-sans: "Inter", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --font-anthropic-serif: Georgia, "Times New Roman", serif;
+  --color-fg:#14141a; --color-fg-muted:#5b5b66; --color-bg:#f7f5f8; --color-panel:#ffffff; --color-border-line:#e6dfe8;
+  --color-ok:#0f8a3c; --color-bad:#c62f3a;
+  --cds-radius:12px; --cds-pad-lg:18px; --cds-pad-xl:28px;
+  --cds-gap-md:14px; --cds-gap-lg:24px;
+  --cds-font-size-caption:12px; --cds-font-size-body:14px; --cds-font-size-heading:18px; --cds-font-size-title:20px;
+  --cds-font-weight-medium:600;
+  --cds-text-secondary:#5b5b66;
+  --cds-chart-axis:#c9c3cc; --cds-chart-grid:#e4dde6; --cds-chart-muted:#a9a6b0; --cds-chart-reference:#8f8a96;
+  --cds-surface-popover:#ffffff; --cds-border:#e0d8e3; --cds-shadow-popover:0 6px 20px rgba(20,20,40,.14);
+}
+@media (prefers-color-scheme: dark){
+  :root{--color-fg:#f1eef3;--color-fg-muted:#b4afbb;--color-bg:#121016;--color-panel:#1c1922;--color-border-line:#332e3b;
+  --cds-text-secondary:#b4afbb;--cds-chart-axis:#4a4453;--cds-chart-grid:#3a3442;--cds-chart-muted:#7d7887;--cds-chart-reference:#8f8a96;
+  --cds-surface-popover:#24202b;--cds-border:#3a3442;--color-ok:#4cc27a;--color-bad:#ff6b74}
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--color-bg);color:var(--color-fg);font-family:var(--font-anthropic-sans)}
+.pl-page{max-width:1180px;margin:0 auto;padding:24px 18px 48px}
+.dash-select{font:inherit;font-size:13px;padding:7px 30px 7px 10px;border-radius:8px;border:1px solid var(--color-border-line);background-color:var(--color-panel);color:var(--color-fg)}
+.dash-skeleton{min-height:120px;border-radius:8px;background:linear-gradient(90deg,var(--color-border-line),transparent,var(--color-border-line));background-size:200% 100%;animation:plsk 1.4s infinite}
+@keyframes plsk{to{background-position:-200% 0}}
+.pl-foot{margin-top:32px;font-size:12px;color:var(--color-fg-muted);text-align:center}
+</style>
+</head>
+<body>
+<div class="pl-page">
+<style>
+.pl{--pl-pink:#EA1A85;--pl-blue:#254AA5;--pl-gold:#CBA92B;font-family:var(--font-anthropic-sans);color:var(--color-fg)}
+.pl-hero{background:linear-gradient(120deg,var(--pl-pink) 0%,#b8146a 45%,var(--pl-blue) 100%);color:#fff;border-radius:var(--cds-radius);padding:var(--cds-pad-lg) var(--cds-pad-xl);border-bottom:4px solid var(--pl-gold)}
+.pl-kicker{font-size:var(--cds-font-size-caption);letter-spacing:.12em;text-transform:uppercase;opacity:.9;margin:0 0 4px}
+.pl-title{font-family:var(--font-anthropic-serif);font-weight:400;font-size:clamp(22px,4vw,34px);line-height:1.15;margin:0}
+.pl-sub{margin:6px 0 0;opacity:.92;font-size:var(--cds-font-size-body)}
+.pl-take{font-size:var(--cds-font-size-heading);line-height:1.45;margin:var(--cds-gap-lg) 0}
+.pl-take b{color:var(--pl-pink)}
+.pl-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:var(--cds-gap-md);margin-bottom:var(--cds-gap-lg)}
+.pl-card{background:var(--color-panel);border:1px solid var(--color-border-line);border-radius:var(--cds-radius);padding:var(--cds-pad-lg)}
+.pl-kpi{border-top:3px solid var(--pl-pink)}
+.pl-kpi:nth-child(even){border-top-color:var(--pl-blue)}
+.pl-kv{font-family:var(--font-anthropic-serif);font-weight:400;font-size:28px;font-variant-numeric:tabular-nums;line-height:1.1}
+.pl-kl{font-size:var(--cds-font-size-caption);color:var(--color-fg-muted);margin-top:4px}
+.pl-tabs{display:flex;gap:6px;flex-wrap:wrap;border-bottom:2px solid var(--color-border-line);margin:var(--cds-gap-lg) 0 var(--cds-gap-md)}
+.pl-tab{background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-2px;padding:8px 14px;font:inherit;font-weight:var(--cds-font-weight-medium);color:var(--color-fg-muted);cursor:pointer}
+.pl-tab.pl-on{color:var(--pl-pink);border-bottom-color:var(--pl-pink)}
+.pl-h2{font-size:var(--cds-font-size-title);margin:var(--cds-gap-lg) 0 4px}
+.pl-note{color:var(--color-fg-muted);font-size:var(--cds-font-size-body);margin:0 0 var(--cds-gap-md)}
+.pl-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:var(--cds-gap-md)}
+.pl-chart{position:relative;min-height:290px}
+.pl-chart.pl-short{min-height:150px}
+.pl-chart svg text{font-size:12px;fill:var(--cds-text-secondary)}
+.pl-chart svg .pl-name{fill:var(--color-fg)}
+.pl-chart svg .pl-val{fill:var(--color-fg);font-variant-numeric:tabular-nums}
+.pl-chart .domain,.pl-chart .tick line{stroke:var(--cds-chart-axis)}
+.pl-legend{display:flex;gap:14px;font-size:var(--cds-font-size-caption);color:var(--color-fg-muted);margin:4px 0 0}
+.pl-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.pl-tip{position:absolute;pointer-events:none;background:var(--cds-surface-popover);border:1px solid var(--cds-border);box-shadow:var(--cds-shadow-popover);border-radius:var(--cds-radius);padding:8px 10px;font-size:12px;line-height:1.45;z-index:5;max-width:240px}
+.pl-tip strong{display:block;color:var(--color-fg);margin-bottom:2px}
+.pl-tip span{display:block;color:var(--cds-text-secondary)}
+.pl-tablebar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:var(--cds-gap-lg) 0 6px}
+.pl-scroll{overflow-x:auto}
+.pl-table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+.pl-table th{background:var(--pl-blue);color:#fff;text-align:right;padding:7px 8px;font-weight:var(--cds-font-weight-medium);white-space:nowrap;border-bottom:2px solid var(--pl-gold)}
+.pl-table th:nth-child(2),.pl-table td:nth-child(2){text-align:left}
+.pl-table td{padding:6px 8px;text-align:right;border-bottom:1px solid var(--color-border-line);white-space:nowrap}
+.pl-table tr.pl-top td{background:color-mix(in srgb,var(--pl-pink) 8%,transparent)}
+.pl-table td.pl-up{color:var(--color-ok)}
+.pl-table td.pl-down{color:var(--color-bad)}
+.pl-details{margin-top:var(--cds-gap-lg)}
+.pl-details summary{cursor:pointer;font-weight:var(--cds-font-weight-medium)}
+.pl-details li{margin:4px 0}
+.pl-fail{color:var(--color-fg-muted);font-size:var(--cds-font-size-caption);padding:20px 0}
+</style>
+
+<div class="pl">
+  <header class="pl-hero" id="hero">
+    <p class="pl-kicker">Halla Bol · SupeRR Selector Season 2 · Round 1</p>
+    <h1 class="pl-title">PULSE: the most reliable T20 players under pressure</h1>
+    <p class="pl-sub">Pressure-Under-Leverage Statistical Evaluation · IPL 2022–26 and T20 Internationals · Mohammed Haaris</p>
+  </header>
+
+  <p class="pl-take" id="takeaway"><b data-draw="topbat" data-source="batters" data-field="name" data-row="0">—</b> is the most reliable batter under pressure (PULSE score <b data-draw="topbatscore" data-source="batters" data-field="pulse_score" data-row="0">—</b>), and <b data-draw="topbowl" data-source="bowlers" data-field="name" data-row="0">—</b> is the most reliable bowler (PULSE score <b data-draw="topbowlscore" data-source="bowlers" data-field="pulse_score" data-row="0">—</b>).</p>
+
+  <div class="pl-kpis" id="kpis">
+    <div class="pl-card pl-kpi"><div class="pl-kv" data-draw="kpi" data-source="summary" data-field="value" data-where="metric=balls">—</div><div class="pl-kl">Deliveries analysed</div></div>
+    <div class="pl-card pl-kpi"><div class="pl-kv" data-draw="kpi" data-source="summary" data-field="value" data-where="metric=matches">—</div><div class="pl-kl">Matches</div></div>
+    <div class="pl-card pl-kpi"><div class="pl-kv" data-draw="kpi" data-source="summary" data-field="value" data-where="metric=pressure_balls">—</div><div class="pl-kl">Pressure balls (top 25% per innings)</div></div>
+    <div class="pl-card pl-kpi"><div class="pl-kv" data-draw="kpi" data-source="summary" data-field="value" data-where="metric=eligible_batters">—</div><div class="pl-kl">Eligible batters (120+ pressure balls)</div></div>
+    <div class="pl-card pl-kpi"><div class="pl-kv" data-draw="kpi" data-source="summary" data-field="value" data-where="metric=eligible_bowlers">—</div><div class="pl-kl">Eligible bowlers (120+ pressure balls)</div></div>
+  </div>
+
+  <nav class="pl-tabs" id="tabs" role="tablist">
+    <button class="pl-tab pl-on" data-tab="batters" role="tab" aria-selected="true">Batters</button>
+    <button class="pl-tab" data-tab="bowlers" role="tab" aria-selected="false">Bowlers</button>
+    <button class="pl-tab" data-tab="method" role="tab" aria-selected="false">Method</button>
+  </nav>
+
+  <section id="batters" class="pl-sec">
+    <h2 class="pl-h2" id="bat-head">Top 10 batters under pressure</h2>
+    <p class="pl-note">Ranked by PULSE score: 40% value added on pressure balls, 25% win probability added, 20% lift over their own normal level, 15% consistency. Point at a bar for details.</p>
+    <div class="pl-grid">
+      <div class="pl-card" id="bat-score-card">
+        <h3 class="pl-note">PULSE score</h3>
+        <div class="pl-chart" id="bat-bars" data-draw="batbars" data-source="batters"></div>
+      </div>
+      <div class="pl-card" id="bat-sr-card">
+        <h3 class="pl-note">Strike rate: normal vs under pressure</h3>
+        <div class="pl-chart" id="bat-dumb" data-draw="batdumb" data-source="batters"></div>
+        <p class="pl-legend"><span><i class="pl-dot" style="background:var(--cds-chart-muted)"></i>Normal situations</span><span><i class="pl-dot" style="background:#EA1A85"></i>Under pressure</span></p>
+      </div>
+    </div>
+    <div class="pl-tablebar">
+      <h3 class="pl-h2" id="bat-table-head" style="margin:0">Batter rankings</h3>
+      <select class="dash-select" id="bat-limit" aria-label="How many batters to show">
+        <option value="10">Top 10</option><option value="25">Top 25</option><option value="all">All eligible</option>
+      </select>
+    </div>
+    <div class="pl-scroll">
+      <table class="pl-table" id="bat-table" data-source="batters" data-row-key="name">
+        <thead><tr>
+          <th data-field="rank">#</th><th data-field="name">Batter</th><th data-field="pulse_score">PULSE</th>
+          <th data-field="pressure_balls">Pressure balls</th><th data-field="sr_pressure">SR pressure</th><th data-field="sr_normal">SR normal</th>
+          <th data-field="avg_pressure">Avg pressure</th><th data-field="avg_normal">Avg normal</th>
+          <th data-field="consistency_pct">Consistency %</th><th data-field="top10_pct">Top-10 in resamples %</th>
+        </tr></thead>
+        <tbody data-draw="battable"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="bowlers" class="pl-sec" hidden>
+    <h2 class="pl-h2" id="bowl-head">Top 10 bowlers under pressure</h2>
+    <p class="pl-note">Same PULSE score, measured on runs saved and wickets taken against what is expected in each situation. Point at a bar for details.</p>
+    <div class="pl-grid">
+      <div class="pl-card" id="bowl-score-card">
+        <h3 class="pl-note">PULSE score</h3>
+        <div class="pl-chart" id="bowl-bars" data-draw="bowlbars" data-source="bowlers"></div>
+      </div>
+      <div class="pl-card" id="bowl-econ-card">
+        <h3 class="pl-note">Economy: normal vs under pressure (lower is better)</h3>
+        <div class="pl-chart" id="bowl-dumb" data-draw="bowldumb" data-source="bowlers"></div>
+        <p class="pl-legend"><span><i class="pl-dot" style="background:var(--cds-chart-muted)"></i>Normal situations</span><span><i class="pl-dot" style="background:#EA1A85"></i>Under pressure</span></p>
+      </div>
+    </div>
+    <div class="pl-tablebar">
+      <h3 class="pl-h2" id="bowl-table-head" style="margin:0">Bowler rankings</h3>
+      <select class="dash-select" id="bowl-limit" aria-label="How many bowlers to show">
+        <option value="10">Top 10</option><option value="25">Top 25</option><option value="all">All eligible</option>
+      </select>
+    </div>
+    <div class="pl-scroll">
+      <table class="pl-table" id="bowl-table" data-source="bowlers" data-row-key="name">
+        <thead><tr>
+          <th data-field="rank">#</th><th data-field="name">Bowler</th><th data-field="pulse_score">PULSE</th>
+          <th data-field="pressure_balls">Pressure balls</th><th data-field="econ_pressure">Econ pressure</th><th data-field="econ_normal">Econ normal</th>
+          <th data-field="wkts_pressure">Wickets pressure</th><th data-field="sr_pressure">Strike rate pressure</th>
+          <th data-field="consistency_pct">Consistency %</th><th data-field="top10_pct">Top-10 in resamples %</th>
+        </tr></thead>
+        <tbody data-draw="bowltable"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="method" class="pl-sec" hidden>
+    <h2 class="pl-h2" id="method-head">How pressure is measured</h2>
+    <p class="pl-note">Every ball gets a win probability from DLS-style resource curves fitted to the data. Its Pressure Index is how much that probability can swing on the ball. The top 25% of balls in each innings are pressure balls.</p>
+    <div class="pl-kpis" id="method-kpis">
+      <div class="pl-card pl-kpi"><div class="pl-kv" data-draw="kpi" data-source="summary" data-field="value" data-where="metric=close_pressure_pct">—</div><div class="pl-kl">Pressure balls with the game in the balance (20–80% win chance)</div></div>
+      <div class="pl-card pl-kpi"><div class="pl-kv" data-draw="kpi" data-source="summary" data-field="value" data-where="metric=close_normal_pct">—</div><div class="pl-kl">Normal balls with the game in the balance</div></div>
+      <div class="pl-card pl-kpi"><div class="pl-kv" data-draw="kpi" data-source="summary" data-field="value" data-where="metric=wkt_pressure_pct">—</div><div class="pl-kl">Wicket rate on pressure balls</div></div>
+      <div class="pl-card pl-kpi"><div class="pl-kv" data-draw="kpi" data-source="summary" data-field="value" data-where="metric=wkt_normal_pct">—</div><div class="pl-kl">Wicket rate on normal balls</div></div>
+      <div class="pl-card pl-kpi"><div class="pl-kv" data-draw="kpi" data-source="summary" data-field="value" data-where="metric=brier">—</div><div class="pl-kl">Win-probability accuracy (Brier score; 0 = perfect, 0.25 = coin toss)</div></div>
+    </div>
+    <div class="pl-grid">
+      <div class="pl-card" id="calib-card">
+        <h3 class="pl-note">Predicted vs actual win rate</h3>
+        <div class="pl-chart" id="calib" data-draw="calib" data-source="calibration"></div>
+        <p class="pl-legend"><span><i class="pl-dot" style="background:#EA1A85"></i>PULSE win probability</span><span><i class="pl-dot" style="background:var(--cds-chart-reference)"></i>Perfect calibration</span></p>
+      </div>
+      <div class="pl-card" id="phase-card">
+        <h3 class="pl-note">Where pressure balls happen (% of all pressure balls)</h3>
+        <div class="pl-chart pl-short" id="phase" data-draw="phase" data-source="phase"></div>
+      </div>
+    </div>
+    <details class="pl-details pl-card" id="method-details">
+      <summary>Full methodology in brief</summary>
+      <ol>
+        <li><b>Clean and join</b> all six datasets. Wides are not balls faced, byes and leg-byes are not charged to the bowler, run-outs are not bowler wickets, super overs are excluded and rain-revised targets are used.</li>
+        <li><b>Resource curves:</b> expected runs left = Z(w) × (1 − e<sup>−k(w) × balls left</sup>) for each number of wickets in hand, the DLS form, adjusted for each season's IPL and T20I scoring level.</li>
+        <li><b>Win probability</b> for every ball: chasing side = chance of scoring the runs needed; side batting first = chance its projected total beats an average chase.</li>
+        <li><b>Pressure Index</b> = expected swing in win probability on the ball, ×1.2 in knockouts. Pressure balls are the top 25% within each innings (cutoffs 1.02 in the first innings and 1.52 in the second).</li>
+        <li><b>Value per ball</b> = runs and wickets compared with what is expected in the same innings, phase, wickets lost, competition and pace or spin. A wicket costs the runs it takes away from the team at that moment.</li>
+        <li><b>Fairness:</b> at least 120 pressure balls; empirical-Bayes (DerSimonian-Laird) shrinkage for small samples; lower weight for games against Associate sides (0.5) and Ireland or Zimbabwe (0.8).</li>
+        <li><b>PULSE score</b> = 40% pressure value + 25% win probability added + 20% lift over own normal + 15% consistency, each as a z-score.</li>
+        <li><b>Stress tests:</b> 300 bootstrap resamples of matches, five weight settings (at most one name changes) and minimum-ball cutoffs from 60 to 200 (the top 8 batters never change).</li>
+      </ol>
+    </details>
+  </section>
+</div>
+
+
+<p class="pl-foot">PULSE · Pressure-Under-Leverage Statistical Evaluation · SupeRR Selector Season 2, Round 1 · Data: supplied IPL &amp; T20I ball-by-ball dataset (2022–2026)</p>
+</div>
+<script type="text/csv" id="csv-batters">
+rank,name,teams,pressure_balls,pressure_innings,pulse_score,top10_pct,consistency_pct,value_pressure,value_normal,delta,sr_pressure,sr_normal,avg_pressure,avg_normal
+1,Heinrich Klaasen,"South Africa, Sunrisers Hyderabad",334,25,3.21,97,84,0.195,0.198,-0.003,186.2,160.8,51.8,37.0
+2,Babar Azam,Pakistan,218,20,2.2,67,68,0.137,0.034,0.103,161.5,126.8,88.0,29.8
+3,Tim David,"Australia, Mumbai Indians, Royal Challengers Bengaluru",541,52,1.64,59,62,0.157,0.288,-0.131,175.8,179.1,34.0,36.1
+4,Suryakumar Yadav,"India, Mumbai Indians",790,78,1.62,43,72,0.146,0.289,-0.143,163.5,167.4,38.0,39.7
+5,Tilak Varma,"India, India A, Mumbai Indians",804,67,1.58,23,60,0.139,0.152,-0.013,148.8,140.3,35.2,45.3
+6,Tristan Stubbs,"Delhi Capitals, Mumbai Indians, South Africa",351,34,1.28,43,70,0.122,0.14,-0.018,156.4,146.2,45.8,34.4
+7,David Miller,"Delhi Capitals, Gujarat Titans, Lucknow Super Giants",464,42,1.08,25,63,0.126,0.055,0.071,171.8,136.5,41.9,37.1
+8,Dinesh Karthik,"India, Royal Challengers Bengaluru",316,39,1.07,30,63,0.135,0.128,0.007,176.9,157.9,34.9,28.3
+9,Shubman Gill,"Gujarat Titans, India",425,43,1.05,18,63,0.111,0.091,0.02,156.9,148.0,37.1,42.8
+10,Kamindu Mendis,"Sri Lanka, Sunrisers Hyderabad",176,20,1.0,23,70,0.107,0.039,0.068,136.9,126.4,30.1,22.0
+11,Cameron Green,"Australia, Kolkata Knight Riders, Mumbai Indians",298,33,0.9,30,66,0.112,0.112,-0.0,158.4,150.6,39.3,38.9
+12,Rajat Patidar,Royal Challengers Bengaluru,313,28,0.85,19,65,0.112,0.201,-0.089,151.4,176.4,36.5,35.6
+13,Harry Tector,Ireland,304,28,0.84,10,67,0.096,0.007,0.089,123.0,122.3,41.6,24.7
+14,Lokesh Rahul,"Delhi Capitals, India, Lucknow Super Giants",299,28,0.81,14,59,0.124,0.06,0.064,154.8,138.9,35.6,46.7
+15,David Warner,"Australia, Delhi Capitals",148,12,0.72,16,69,0.098,0.135,-0.037,139.2,145.6,41.2,41.5
+16,Shashank Singh,"Punjab Kings, Sunrisers Hyderabad",138,19,0.68,27,75,0.101,0.132,-0.03,182.6,154.7,50.4,34.4
+17,Rahul Tripathi,"Chennai Super Kings, India, Kolkata Knight Riders",169,15,0.66,17,59,0.092,-0.013,0.105,156.8,135.7,37.9,23.8
+18,Andre Russell,"Kolkata Knight Riders, West Indies",311,30,0.65,17,65,0.119,0.186,-0.066,183.6,161.8,28.6,28.5
+19,Shahbaz Ahmed,"India, Lucknow Super Giants, Royal Challengers Bengaluru",178,17,0.6,6,69,0.086,0.022,0.065,137.6,116.0,30.6,22.9
+20,Rashid Khan,"Afghanistan, Gujarat Titans",164,37,0.6,12,69,0.111,0.157,-0.047,174.4,147.2,15.9,19.4
+21,Ashutosh Sharma,"Delhi Capitals, India A, Punjab Kings",153,20,0.58,22,55,0.117,0.169,-0.053,172.5,162.2,29.3,26.1
+22,Ruturaj Gaikwad,"Chennai Super Kings, India",169,17,0.57,6,70,0.089,0.029,0.06,144.4,138.5,27.1,39.5
+23,Venkatesh Iyer,"India, Kolkata Knight Riders, Royal Challengers Bengaluru",236,22,0.57,10,62,0.108,0.058,0.049,161.9,143.8,31.8,30.8
+24,Rinku Singh,"India, Kolkata Knight Riders",420,42,0.57,10,68,0.095,0.174,-0.08,155.7,150.9,38.5,39.5
+25,Jaker Ali Anik,Bangladesh,188,17,0.56,12,62,0.098,0.064,0.034,141.5,123.5,33.2,25.0
+26,Yashasvi Jaiswal,"India, Rajasthan Royals",183,22,0.55,17,64,0.094,0.135,-0.041,162.3,155.7,29.7,37.0
+27,Sam Curran,"Chennai Super Kings, England, Punjab Kings",272,32,0.53,7,58,0.083,-0.012,0.095,147.4,123.0,25.1,24.0
+28,Nicholas Pooran,"Lucknow Super Giants, Sunrisers Hyderabad, West Indies",538,50,0.49,10,63,0.09,0.139,-0.049,149.8,159.8,28.8,35.3
+29,Jos Buttler,"England, Gujarat Titans, Rajasthan Royals",441,36,0.48,10,70,0.105,0.162,-0.057,151.0,156.2,35.1,42.9
+30,Kamil Mishara,Sri Lanka,124,9,0.45,2,58,0.089,0.039,0.05,125.0,127.6,77.5,21.2
+31,Jimmy Neesham,"New Zealand, Rajasthan Royals",141,20,0.44,4,64,0.085,0.063,0.022,153.2,125.7,27.0,18.5
+32,Bhanuka Rajapaksa,"Punjab Kings, Sri Lanka",166,17,0.42,13,51,0.093,0.032,0.061,157.2,123.5,29.0,19.7
+33,Jacob Bethell,"England, Royal Challengers Bengaluru",138,14,0.41,15,56,0.09,0.065,0.025,137.7,152.1,31.7,22.8
+34,Brandon King,West Indies,121,24,0.41,7,67,0.088,0.032,0.056,126.4,133.5,30.6,26.5
+35,Shreyas Iyer,"India, Kolkata Knight Riders, Punjab Kings",438,45,0.39,10,69,0.088,0.152,-0.065,152.7,153.3,35.2,37.1
+36,Jitesh Sharma,"India, India A, Punjab Kings",330,37,0.39,9,72,0.081,0.066,0.015,155.2,155.5,26.9,22.5
+37,Naman Dhir,"India, India A, Mumbai Indians",120,16,0.38,14,60,0.094,0.127,-0.033,190.0,162.9,32.6,27.3
+38,George Dockrell,Ireland,179,24,0.37,10,63,0.094,0.074,0.02,158.1,123.8,31.4,24.7
+39,Ishan Kishan,"India, Mumbai Indians, Sunrisers Hyderabad",301,32,0.36,6,67,0.091,0.081,0.01,146.5,146.4,33.9,30.9
+40,Najibullah Zadran,Afghanistan,135,12,0.34,4,63,0.086,0.077,0.01,157.8,123.4,42.6,23.4
+41,Kusal Perera,Sri Lanka,198,20,0.32,6,61,0.085,0.055,0.029,136.4,135.9,22.5,29.6
+42,Wanindu Hasaranga,"Lucknow Super Giants, Rajasthan Royals, Royal Challengers Bengaluru",188,39,0.31,5,58,0.085,-0.023,0.108,144.1,111.8,15.9,10.1
+43,Rohit Sharma,"India, Mumbai Indians",176,20,0.29,9,64,0.076,0.016,0.06,150.0,143.1,33.0,26.8
+44,Mohammad Nawaz,Pakistan,255,32,0.28,3,62,0.083,0.082,0.001,153.3,129.8,30.1,15.7
+45,Mark Chapman,New Zealand,268,26,0.24,6,60,0.085,0.122,-0.037,140.3,146.1,34.2,28.5
+46,Sikandar Raza,"Punjab Kings, Zimbabwe",385,37,0.24,3,60,0.082,0.091,-0.009,133.2,137.0,25.6,28.2
+47,Iftikhar Ahmed,Pakistan,238,20,0.22,2,58,0.088,0.067,0.021,142.0,116.1,26.0,21.0
+48,Washington Sundar,"Gujarat Titans, India, Sunrisers Hyderabad",195,26,0.22,3,60,0.086,0.052,0.033,136.9,141.2,19.1,29.7
+49,Jason Holder,"Gujarat Titans, Lucknow Super Giants, Rajasthan Royals",141,31,0.19,3,63,0.075,0.05,0.026,141.8,142.5,15.4,15.0
+50,Glenn Phillips,"Gujarat Titans, New Zealand, Sunrisers Hyderabad",325,31,0.12,3,59,0.095,0.186,-0.091,127.4,157.7,37.6,34.6
+51,Mahendra Singh Dhoni,Chennai Super Kings,156,23,0.11,5,53,0.107,0.166,-0.059,162.2,143.3,31.6,31.4
+52,Liton Das,"Bangladesh, Kolkata Knight Riders",182,24,0.09,3,55,0.079,0.032,0.047,134.1,132.3,24.4,26.4
+53,Daryl Mitchell,"Chennai Super Kings, New Zealand, Rajasthan Royals",294,30,0.09,2,51,0.085,0.131,-0.046,143.2,145.7,28.1,29.0
+54,Glenn Maxwell,"Australia, Punjab Kings, Royal Challengers Bengaluru",278,38,0.06,4,62,0.069,0.116,-0.047,159.0,161.8,19.2,26.8
+55,Usman Khan,Pakistan,134,11,0.04,0,56,0.077,0.032,0.045,137.3,112.3,23.0,21.0
+56,Rovman Powell,"Delhi Capitals, Kolkata Knight Riders, Rajasthan Royals",527,51,0.03,2,63,0.094,0.187,-0.093,154.8,142.6,25.5,30.0
+57,Harry Brook,"Delhi Capitals, England, Sunrisers Hyderabad",202,22,-0.01,6,59,0.086,0.19,-0.104,154.0,166.7,23.9,40.9
+58,Shamim Hossain,"Bangladesh, Bangladesh A",175,16,-0.02,0,56,0.08,0.052,0.028,132.0,123.9,25.7,20.4
+59,Rassie van der Dussen,"Rajasthan Royals, South Africa",137,11,-0.03,5,51,0.081,0.043,0.038,141.6,112.1,38.8,17.7
+60,Krunal Pandya,"Lucknow Super Giants, Royal Challengers Bengaluru",259,29,-0.04,1,51,0.064,-0.039,0.103,139.0,120.7,27.7,22.8
+61,Mohammad Haris,"Pakistan, Pakistan A",166,20,-0.06,0,54,0.073,0.054,0.019,130.1,136.1,19.6,16.4
+62,Ravindra Jadeja,"Chennai Super Kings, India, Rajasthan Royals",352,35,-0.09,0,61,0.061,0.046,0.016,141.2,131.5,33.1,33.2
+63,Rahmanullah Gurbaz,"Afghanistan, Gujarat Titans, Kolkata Knight Riders",136,25,-0.1,0,62,0.07,-0.007,0.077,117.6,132.5,17.8,22.2
+64,Prabhsimran Singh,"India, India A, Punjab Kings",163,18,-0.12,2,58,0.083,0.113,-0.03,162.6,159.9,24.1,32.9
+65,Fakhar Zaman,Pakistan,399,32,-0.13,0,58,0.07,0.067,0.003,130.3,132.3,28.9,24.6
+66,Dhruv Jurel,"India, Rajasthan Royals",280,30,-0.13,1,58,0.078,0.077,0.0,151.8,151.0,30.4,31.3
+67,Curtis Campher,Ireland,152,17,-0.13,1,56,0.073,0.101,-0.028,121.1,119.5,20.4,22.4
+68,Tim Seifert,"Delhi Capitals, Kolkata Knight Riders, New Zealand",151,20,-0.14,1,64,0.079,0.174,-0.095,143.0,157.6,27.0,30.0
+69,Vijay Shankar,"Chennai Super Kings, Gujarat Titans",174,17,-0.17,0,49,0.074,0.029,0.045,143.1,128.3,31.1,22.7
+70,Deepak Hooda,"Chennai Super Kings, India, Lucknow Super Giants",165,25,-0.18,0,55,0.068,0.023,0.045,127.9,134.0,17.6,24.9
+71,Nurul Hasan,Bangladesh,129,15,-0.19,0,56,0.071,0.075,-0.005,130.2,125.7,28.0,27.4
+72,Dasun Shanaka,"Gujarat Titans, Rajasthan Royals, Sri Lanka",351,38,-0.19,1,54,0.076,0.096,-0.02,145.9,134.3,20.5,24.7
+73,Hasan Nawaz,Pakistan,127,17,-0.21,0,56,0.078,0.093,-0.016,133.1,164.5,18.8,21.6
+74,Towhid Hridoy,"Bangladesh, Bangladesh A",329,28,-0.24,1,51,0.073,0.045,0.028,124.9,126.3,37.4,28.2
+75,M Shahrukh Khan,"Gujarat Titans, Punjab Kings",145,24,-0.26,1,54,0.071,0.079,-0.008,151.0,152.1,31.3,20.2
+76,Darwish Rasooli,"Afghanistan, Afghanistan A",162,20,-0.26,0,56,0.065,0.057,0.009,103.7,122.1,15.3,23.3
+77,Shivam Dube,"Chennai Super Kings, India",481,43,-0.27,0,53,0.083,0.118,-0.034,148.2,156.8,31.0,36.2
+78,Brian Bennett,Zimbabwe,219,23,-0.27,0,64,0.07,0.049,0.021,132.4,127.0,19.3,27.0
+79,Faf du Plessis,"Delhi Capitals, Royal Challengers Bengaluru",189,16,-0.28,2,51,0.08,0.042,0.038,141.8,144.4,26.8,38.3
+80,Lorcan Tucker,Ireland,165,22,-0.3,0,62,0.067,0.019,0.047,129.7,124.6,16.5,25.0
+81,Matthew Wade,"Australia, Gujarat Titans",214,20,-0.3,1,60,0.063,0.121,-0.059,130.8,146.5,28.0,44.6
+82,Sediqullah Atal,"Afghanistan, Afghanistan A, Delhi Capitals",289,26,-0.3,0,57,0.064,0.056,0.008,128.4,128.5,26.5,34.2
+83,Abdul Samad,"Lucknow Super Giants, Sunrisers Hyderabad",132,16,-0.3,0,54,0.069,0.083,-0.015,141.7,153.4,18.7,24.9
+84,Liam Livingstone,"England, Punjab Kings, Royal Challengers Bengaluru",383,39,-0.31,1,51,0.075,0.131,-0.056,150.4,156.1,22.2,32.9
+85,Azmatullah Omarzai,"Afghanistan, Gujarat Titans, Punjab Kings",161,24,-0.33,0,60,0.066,0.074,-0.007,156.5,131.2,19.4,22.0
+86,Nehal Wadhera,"India A, Mumbai Indians, Punjab Kings",177,18,-0.33,0,56,0.066,0.086,-0.02,131.1,134.9,23.2,24.3
+87,Mohammad Nabi,"Afghanistan, Kolkata Knight Riders, Mumbai Indians",236,34,-0.36,0,60,0.06,0.101,-0.041,136.4,126.5,15.3,30.0
+88,Pathum Nissanka,"Delhi Capitals, Sri Lanka",289,34,-0.44,0,58,0.074,0.125,-0.05,131.1,136.4,21.1,35.9
+89,Abhishek Sharma,"India, India A, Sunrisers Hyderabad",213,33,-0.44,3,64,0.089,0.347,-0.258,168.5,188.8,25.6,35.2
+90,Reeza Hendricks,South Africa,151,16,-0.46,1,64,0.073,0.236,-0.163,143.7,147.2,24.1,40.3
+91,Rishabh Pant,"Delhi Capitals, India, Lucknow Super Giants",259,30,-0.48,0,53,0.062,0.045,0.017,152.5,140.6,26.3,32.0
+92,Axar Patel,"Delhi Capitals, India",465,55,-0.48,0,53,0.056,0.047,0.008,136.8,138.2,25.4,22.5
+93,Afif Hossain,Bangladesh,128,8,-0.51,0,51,0.072,0.059,0.014,122.7,120.2,39.2,25.5
+94,Rahul Tewatia,Gujarat Titans,229,35,-0.53,0,51,0.061,0.087,-0.026,159.4,141.0,24.3,26.0
+95,Mitchell Marsh,"Australia, Delhi Capitals, Lucknow Super Giants",304,29,-0.53,0,58,0.073,0.175,-0.102,135.5,161.8,29.4,38.3
+96,Saim Ayub,Pakistan,196,30,-0.6,0,54,0.067,0.063,0.004,131.6,139.6,17.2,25.1
+97,Josh Inglis,"Australia, Lucknow Super Giants, Punjab Kings",186,24,-0.6,0,61,0.072,0.193,-0.121,155.9,164.2,20.7,34.7
+98,Marcus Stoinis,"Australia, Lucknow Super Giants, Punjab Kings",365,44,-0.6,0,59,0.068,0.147,-0.08,149.6,155.2,22.8,35.1
+99,Aiden Markram,"Lucknow Super Giants, South Africa, Sunrisers Hyderabad",304,39,-0.62,0,64,0.059,0.083,-0.024,126.6,146.9,24.1,32.4
+100,Mohammad Rizwan,Pakistan,334,22,-0.62,0,60,0.065,0.133,-0.069,127.5,127.3,47.3,57.8
+101,Nitish Reddy,"India, Sunrisers Hyderabad",126,18,-0.67,0,54,0.069,0.138,-0.069,123.0,156.8,22.1,31.7
+102,Riyan Parag,"India, Rajasthan Royals",295,35,-0.68,0,44,0.066,0.129,-0.063,153.9,150.6,19.7,33.9
+103,Hardik Pandya,"Gujarat Titans, India, Mumbai Indians",687,60,-0.68,0,43,0.053,0.068,-0.015,137.8,143.7,37.9,29.1
+104,Sahibzada Farhan,Pakistan,148,21,-0.68,0,60,0.071,0.15,-0.079,98.0,146.4,24.2,30.5
+105,Roston Chase,West Indies,212,24,-0.71,0,51,0.049,0.074,-0.024,104.7,131.1,20.2,24.5
+106,Nitish Rana,"Delhi Capitals, Kolkata Knight Riders, Rajasthan Royals",198,22,-0.73,0,53,0.06,0.08,-0.02,133.8,149.8,26.5,27.6
+107,Dewald Brevis,"Chennai Super Kings, Mumbai Indians, South Africa",193,22,-0.73,0,49,0.073,0.135,-0.063,142.0,157.7,16.1,31.3
+108,Moeen Ali,"Chennai Super Kings, England, Kolkata Knight Riders",263,22,-0.74,0,45,0.069,0.069,0.0,134.6,146.1,29.5,21.8
+109,Ayush Badoni,"India A, Lucknow Super Giants",246,33,-0.75,0,51,0.05,0.073,-0.022,136.2,143.8,18.6,31.3
+110,Shimron Hetmyer,"Rajasthan Royals, West Indies",461,50,-0.79,0,55,0.062,0.111,-0.049,153.1,150.8,24.3,28.8
+111,Romario Shepherd,"Lucknow Super Giants, Mumbai Indians, Royal Challengers Bengaluru",275,39,-0.8,1,55,0.07,0.274,-0.204,137.5,165.3,18.9,34.0
+112,Sherfane Rutherford,"Gujarat Titans, Kolkata Knight Riders, Mumbai Indians",342,28,-0.85,0,59,0.059,0.094,-0.035,136.8,158.6,24.6,28.0
+113,Phil Salt,"Delhi Capitals, England, Kolkata Knight Riders",142,29,-0.86,0,58,0.072,0.268,-0.196,148.6,171.3,17.6,40.8
+114,Kusal Mendis,"Gujarat Titans, Sri Lanka",263,25,-0.89,0,51,0.058,0.106,-0.048,114.8,138.9,23.2,31.4
+115,Shai Hope,"Delhi Capitals, West Indies",221,25,-0.89,0,53,0.066,0.168,-0.101,129.0,148.0,21.9,40.9
+116,Sanju Samson,"Chennai Super Kings, India, Rajasthan Royals",351,48,-0.89,0,52,0.051,0.138,-0.087,137.3,157.8,25.4,34.1
+117,Sai Sudharsan,"Gujarat Titans, India",226,19,-0.91,0,53,0.07,0.168,-0.098,150.4,149.0,34.0,54.4
+118,Ibrahim Zadran,Afghanistan,272,25,-0.94,0,47,0.047,0.048,-0.001,109.2,119.7,27.0,39.3
+119,Salman Agha,Pakistan,248,26,-0.95,0,55,0.06,0.096,-0.036,109.3,130.0,27.1,26.6
+120,Devdutt Padikkal,"Lucknow Super Giants, Rajasthan Royals, Royal Challengers Bengaluru",154,13,-1.09,0,42,0.043,-0.007,0.049,129.2,140.6,19.9,25.3
+121,Ryan Burl,Zimbabwe,232,26,-1.21,0,47,0.051,0.117,-0.066,117.2,122.6,19.4,27.7
+122,Devon Conway,"Chennai Super Kings, New Zealand",179,18,-1.27,0,49,0.045,0.02,0.025,120.1,134.1,21.5,41.7
+123,Virat Kohli,"India, Royal Challengers Bengaluru",384,37,-1.57,0,54,0.042,0.119,-0.077,137.5,146.7,26.4,55.3
+124,Charith Asalanka,"Mumbai Indians, Sri Lanka",323,39,-1.97,0,48,0.031,0.092,-0.061,119.2,130.3,13.3,30.1
+</script>
+<script type="text/csv" id="csv-bowlers">
+rank,name,teams,pressure_balls,pressure_innings,pulse_score,top10_pct,consistency_pct,value_pressure,value_normal,delta,econ_pressure,econ_normal,wkts_pressure,sr_pressure,sr_normal
+1,Axar Patel,"Delhi Capitals, India",571,55,1.95,65,55,0.061,-0.067,0.128,6.74,8.2,32,17.6,24.0
+2,Kuldeep Yadav,"Delhi Capitals, India",483,44,1.89,66,63,0.075,0.034,0.04,7.1,8.31,31,15.1,16.6
+3,Akeal Hosein,"Chennai Super Kings, Sunrisers Hyderabad, West Indies",441,51,1.48,32,51,0.05,-0.09,0.139,6.52,8.18,24,17.8,23.0
+4,Varun Chakravarthy,"India, Kolkata Knight Riders",528,48,1.46,42,52,0.062,0.05,0.012,7.19,8.27,39,13.3,16.8
+5,Josh Hazlewood,"Australia, Royal Challengers Bengaluru",366,42,1.46,51,53,0.061,0.063,-0.001,7.9,8.4,29,12.2,16.3
+6,Sikandar Raza,"Punjab Kings, Zimbabwe",277,26,1.4,33,54,0.046,-0.038,0.084,5.78,7.62,11,24.6,25.6
+7,Maheesh Theekshana,"Chennai Super Kings, Rajasthan Royals, Sri Lanka",513,51,1.4,17,53,0.056,-0.046,0.102,6.93,7.99,25,20.0,25.9
+8,Rashid Khan,"Afghanistan, Gujarat Titans",656,58,1.37,30,61,0.053,0.063,-0.01,7.36,7.45,39,16.6,18.4
+9,Sunil Narine,Kolkata Knight Riders,341,33,1.26,45,63,0.048,0.115,-0.067,6.61,6.95,19,17.7,26.5
+10,Krunal Pandya,"Lucknow Super Giants, Royal Challengers Bengaluru",327,27,1.25,31,52,0.049,0.026,0.023,7.04,8.08,17,18.9,24.0
+11,Blessing Muzarabani,"Kolkata Knight Riders, Royal Challengers Bengaluru, Zimbabwe",276,26,1.11,45,66,0.057,0.057,-0.0,7.14,7.73,18,14.7,19.9
+12,Arshdeep Singh,"India, Punjab Kings",853,89,1.11,15,53,0.044,0.004,0.04,8.9,9.23,55,14.6,17.5
+13,Riley Meredith,"Australia, Mumbai Indians",124,10,1.06,28,66,0.034,-0.029,0.063,8.59,9.62,10,11.6,32.3
+14,Yash Dayal,"Gujarat Titans, India, Royal Challengers Bengaluru",217,24,0.98,21,63,0.029,-0.058,0.086,9.58,9.61,15,13.7,25.6
+15,Nasum Ahmed,Bangladesh,157,20,0.92,21,48,0.029,-0.052,0.08,5.88,8.26,6,26.0,23.4
+16,Hasan Mahmud,Bangladesh,121,14,0.9,17,50,0.03,-0.062,0.092,7.17,8.07,11,10.7,25.3
+17,Eshan Malinga,"Sri Lanka, Sri Lanka A, Sunrisers Hyderabad",182,18,0.89,25,57,0.036,-0.008,0.044,7.05,9.52,9,19.0,16.3
+18,Mohsin Khan,Lucknow Super Giants,198,19,0.87,39,54,0.045,0.048,-0.003,7.97,8.6,12,16.0,17.8
+19,Dasun Shanaka,"Gujarat Titans, Rajasthan Royals, Sri Lanka",166,19,0.87,16,61,0.019,-0.075,0.094,8.5,8.99,15,10.4,31.1
+20,Umran Malik,"India, Kolkata Knight Riders, Sunrisers Hyderabad",159,14,0.86,18,55,0.027,-0.043,0.069,8.84,10.24,16,9.2,18.7
+21,Mujeeb Ur Rahman,"Afghanistan, Kolkata Knight Riders, Mumbai Indians",211,23,0.86,15,52,0.035,0.015,0.02,6.09,7.35,12,17.2,17.1
+22,Ravindra Jadeja,"Chennai Super Kings, India, Rajasthan Royals",245,24,0.83,12,57,0.03,-0.006,0.036,7.11,8.06,11,22.2,24.5
+23,Lockie Ferguson,"Gujarat Titans, Kolkata Knight Riders, New Zealand",296,31,0.83,20,56,0.035,0.002,0.033,8.78,9.0,17,16.5,18.9
+24,Mohammad Nawaz,Pakistan,308,29,0.8,18,55,0.038,0.039,-0.001,6.94,7.2,21,14.6,15.5
+25,Jimmy Neesham,"New Zealand, Rajasthan Royals",173,21,0.78,8,52,0.027,-0.063,0.09,8.78,9.13,16,10.4,20.0
+26,Gudakesh Motie,West Indies,209,19,0.7,13,48,0.028,-0.089,0.117,7.33,8.58,17,12.2,31.2
+27,Saim Ayub,Pakistan,216,15,0.69,9,55,0.024,-0.022,0.046,5.86,8.07,7,30.3,15.7
+28,Aaron Hardie,"Australia, Punjab Kings",135,11,0.66,11,55,0.021,-0.058,0.079,7.69,9.51,8,16.4,20.0
+29,Mitchell Starc,"Australia, Delhi Capitals, Kolkata Knight Riders",176,24,0.57,13,44,0.025,-0.066,0.091,9.81,9.92,18,9.3,18.2
+30,Mahedi Hasan,Bangladesh,301,32,0.52,18,47,0.034,0.035,-0.002,7.11,7.02,16,18.2,18.3
+31,Taskin Ahmed,Bangladesh,321,34,0.52,11,53,0.023,0.012,0.011,7.39,8.26,18,17.0,15.0
+32,Glenn Maxwell,"Australia, Punjab Kings, Royal Challengers Bengaluru",145,19,0.52,5,50,0.023,-0.036,0.059,7.08,9.32,6,24.0,21.5
+33,Richard Ngarava,Zimbabwe,221,24,0.51,13,56,0.038,0.001,0.036,7.95,8.15,12,17.7,21.9
+34,Xavier Bartlett,"Australia, Punjab Kings",180,21,0.5,1,50,0.019,-0.075,0.093,8.09,9.69,10,17.5,23.6
+35,Shamar Joseph,"Lucknow Super Giants, West Indies",157,15,0.47,1,48,0.021,-0.077,0.098,9.94,10.3,13,11.0,18.2
+36,Shaheen Afridi,Pakistan,323,33,0.45,8,50,0.04,0.024,0.015,7.9,8.06,22,14.0,15.9
+37,Sufiyan Muqeem,"Pakistan, Pakistan A",154,12,0.44,10,61,0.02,0.045,-0.025,6.08,5.97,12,12.7,13.6
+38,Mohammad Rishad Hossain,Bangladesh,226,27,0.4,5,47,0.01,-0.11,0.12,7.5,8.77,16,14.0,17.6
+39,Nathan Ellis,"Australia, Chennai Super Kings, Punjab Kings",342,29,0.4,8,42,0.033,0.048,-0.014,8.57,8.08,23,14.1,16.9
+40,Abrar Ahmed,Pakistan,251,19,0.39,5,52,0.024,0.025,-0.002,6.86,6.6,15,16.2,16.8
+41,Harshit Rana,"India, Kolkata Knight Riders",239,27,0.38,3,49,0.013,-0.032,0.046,9.21,9.69,19,12.1,18.1
+42,Noor Ahmad,"Afghanistan, Chennai Super Kings, Gujarat Titans",330,35,0.35,12,45,0.037,0.039,-0.002,8.28,7.94,25,12.2,19.4
+43,Benjamin White,Ireland,141,11,0.34,0,48,0.01,-0.097,0.107,8.16,9.69,9,15.1,28.2
+44,Obed McCoy,"Rajasthan Royals, West Indies",254,23,0.27,5,55,0.017,-0.019,0.036,9.08,9.76,14,16.6,15.7
+45,Ben Dwarshuis,"Australia, Punjab Kings",148,14,0.26,1,46,0.014,-0.04,0.054,9.15,9.51,10,14.3,13.9
+46,Tim Southee,"Kolkata Knight Riders, New Zealand",205,21,0.26,3,48,0.034,0.02,0.014,8.15,8.38,17,11.5,16.6
+47,Ish Sodhi,New Zealand,239,28,0.25,3,49,0.003,-0.104,0.107,7.83,8.75,13,18.2,18.8
+48,Kagiso Rabada,"Gujarat Titans, Punjab Kings, South Africa",313,38,0.22,1,49,0.022,0.015,0.007,8.91,9.35,20,15.0,18.7
+49,Benjamin Sears,New Zealand,142,15,0.21,2,48,0.025,-0.007,0.032,7.37,8.45,10,14.0,15.6
+50,Adil Rashid,"England, Sunrisers Hyderabad",277,31,0.19,4,46,0.009,-0.052,0.061,7.37,8.1,17,16.2,19.1
+51,Jasprit Bumrah,"India, Mumbai Indians",408,43,0.18,3,48,0.045,0.166,-0.121,7.8,7.11,21,19.0,20.4
+52,Ripon Mondol,"Bangladesh, Bangladesh A",142,9,0.18,0,45,0.019,-0.018,0.037,6.88,8.57,12,11.4,13.0
+53,Mitchell Santner,"Chennai Super Kings, Mumbai Indians, New Zealand",326,40,0.17,1,48,0.02,0.037,-0.017,6.99,7.54,15,20.9,19.8
+54,Tanzim Sakib,Bangladesh,274,26,0.16,2,46,0.018,-0.083,0.101,9.09,8.69,16,16.2,20.8
+55,Mohammad Wasim,Pakistan,127,10,0.14,2,53,0.006,-0.014,0.02,8.19,8.81,4,29.5,18.2
+56,Haris Rauf,Pakistan,354,31,0.12,2,49,0.017,0.019,-0.002,8.71,8.65,23,14.7,13.0
+57,Mohammad Saifuddin,Bangladesh,124,14,0.09,0,50,0.023,-0.02,0.043,9.89,8.66,8,13.9,18.4
+58,Adam Zampa,"Australia, Rajasthan Royals, Sunrisers Hyderabad",438,38,0.09,4,43,0.004,-0.069,0.073,8.01,8.59,31,13.8,18.1
+59,Naveen ul Haq,"Afghanistan, Lucknow Super Giants",217,26,0.09,1,43,0.027,0.003,0.024,9.9,8.54,17,12.1,16.6
+60,Patrick Cummins,"Australia, Kolkata Knight Riders, Sunrisers Hyderabad",197,24,0.07,1,46,0.01,0.001,0.009,8.94,9.32,9,20.7,19.8
+61,Gareth Delany,Ireland,135,16,0.06,0,53,0.012,-0.018,0.03,6.45,8.01,5,26.8,16.7
+62,FazalHaq Farooqi,"Afghanistan, Rajasthan Royals, Sunrisers Hyderabad",265,29,0.04,0,52,0.022,-0.001,0.022,8.21,8.21,12,21.8,22.5
+63,Chamika Karunaratne,"Kolkata Knight Riders, Sri Lanka",133,13,0.04,0,55,-0.003,-0.052,0.048,8.76,8.77,6,20.7,30.3
+64,Trent Boult,"Mumbai Indians, New Zealand, Rajasthan Royals",391,42,0.04,2,40,0.023,0.046,-0.023,8.92,8.33,20,18.8,22.0
+65,Vyshak Kumar,"India, India A, Punjab Kings",155,11,-0.01,2,48,-0.008,-0.077,0.069,10.19,10.58,2,69.5,17.1
+66,Jacob Duffy,"New Zealand, Royal Challengers Bengaluru",151,20,-0.03,2,42,0.02,0.046,-0.026,9.15,8.73,10,13.9,14.2
+67,Mohammed Shami,"Gujarat Titans, India, Lucknow Super Giants",263,30,-0.04,1,45,0.023,0.046,-0.022,8.51,8.8,16,16.0,19.2
+68,Ravichandran Ashwin,"Chennai Super Kings, India, Rajasthan Royals",360,32,-0.04,5,46,0.009,-0.026,0.035,8.63,7.61,17,20.4,35.2
+69,Nuwan Thushara,"Mumbai Indians, Royal Challengers Bengaluru, Sri Lanka",217,24,-0.05,2,45,0.01,0.008,0.002,8.72,8.99,9,22.3,21.3
+70,Bhuvneshwar Kumar,"India, Royal Challengers Bengaluru, Sunrisers Hyderabad",514,55,-0.05,4,44,0.024,0.122,-0.098,9.85,7.86,29,16.7,20.2
+71,Jason Behrendorff,"Australia, Mumbai Indians, Royal Challengers Bengaluru",145,13,-0.08,0,48,0.017,-0.019,0.035,7.37,9.48,8,17.5,17.5
+72,Shardul Thakur,"Chennai Super Kings, Delhi Capitals, India",274,25,-0.11,0,42,-0.006,-0.063,0.057,10.52,10.4,13,18.8,17.6
+73,Shoriful Islam,Bangladesh,222,27,-0.11,0,41,0.017,0.001,0.016,7.93,8.45,12,18.2,19.7
+74,Kyle Jamieson,"Chennai Super Kings, Delhi Capitals, New Zealand",175,17,-0.12,0,46,0.001,-0.064,0.064,9.11,10.16,8,20.5,17.8
+75,Sam Curran,"Chennai Super Kings, England, Punjab Kings",351,40,-0.13,0,48,-0.008,-0.113,0.106,9.87,9.57,20,16.6,24.2
+76,T Natarajan,"Delhi Capitals, Sunrisers Hyderabad",263,29,-0.14,0,50,0.001,-0.012,0.014,10.75,9.3,15,16.3,21.3
+77,Mark Adair,Ireland,292,26,-0.14,0,46,0.012,0.004,0.009,9.66,8.28,24,11.2,18.0
+78,Yash Thakur,"India, India A, Lucknow Super Giants",143,12,-0.16,1,40,0.006,-0.026,0.032,10.56,10.19,8,16.1,16.9
+79,Moeen Ali,"Chennai Super Kings, England, Kolkata Knight Riders",124,20,-0.16,0,46,0.01,0.007,0.003,8.27,8.2,6,19.8,17.6
+80,Joshua Little,"Gujarat Titans, Ireland",259,26,-0.16,1,32,0.019,0.008,0.011,8.48,8.0,15,16.6,17.7
+81,Romario Shepherd,"Lucknow Super Giants, Mumbai Indians, Royal Challengers Bengaluru",397,43,-0.21,0,43,-0.017,-0.18,0.162,10.34,10.51,29,12.6,21.0
+82,Curtis Campher,Ireland,155,16,-0.24,0,41,0.009,-0.095,0.104,8.62,8.62,5,30.2,61.2
+83,Wanindu Hasaranga,"Lucknow Super Giants, Rajasthan Royals, Royal Challengers Bengaluru",582,50,-0.25,0,53,0.007,0.071,-0.064,8.23,7.82,34,16.9,14.8
+84,Matt Henry,"Chennai Super Kings, Lucknow Super Giants, New Zealand",126,19,-0.25,0,44,-0.02,-0.1,0.079,9.02,9.26,6,20.5,23.8
+85,Harpreet Brar,Punjab Kings,133,18,-0.26,0,39,0.012,0.014,-0.002,9.07,8.05,7,18.4,21.5
+86,Jofra Archer,"England, Mumbai Indians, Rajasthan Royals",244,31,-0.26,1,43,-0.001,0.026,-0.026,9.8,8.89,15,15.7,18.3
+87,Abbas Afridi,"Pakistan, Pakistan A",156,15,-0.26,0,44,0.018,0.02,-0.002,8.34,8.35,11,13.3,10.6
+88,Avesh Khan,"India, Lucknow Super Giants, Rajasthan Royals",528,49,-0.26,1,45,-0.003,-0.057,0.055,9.24,9.79,27,18.6,19.8
+89,Barry McCarthy,Ireland,198,19,-0.28,0,50,-0.001,-0.048,0.046,9.13,8.48,8,23.0,24.2
+90,Vaibhav Arora,"India A, Kolkata Knight Riders, Punjab Kings",183,21,-0.28,0,45,0.007,-0.016,0.023,11.2,9.39,12,13.7,20.3
+91,Jason Holder,"Gujarat Titans, Lucknow Super Giants, Rajasthan Royals",627,57,-0.3,0,53,0.014,-0.014,0.027,8.96,9.02,34,17.2,17.9
+92,Khaleel Ahmed,"Chennai Super Kings, Delhi Capitals, India",221,29,-0.31,0,49,0.002,0.011,-0.009,10.5,8.65,18,11.6,22.5
+93,Deepak Chahar,"Chennai Super Kings, India, Mumbai Indians",150,19,-0.31,0,42,0.015,-0.005,0.02,8.47,9.22,9,16.2,21.4
+94,Mohammed Siraj,"Gujarat Titans, India, Royal Challengers Bengaluru",342,39,-0.31,1,41,0.014,0.034,-0.02,9.39,8.72,19,16.8,22.2
+95,Craig Young,Ireland,187,15,-0.33,0,46,-0.001,0.012,-0.013,8.44,8.87,9,20.2,10.5
+96,Suyash Sharma,"India A, Kolkata Knight Riders, Royal Challengers Bengaluru",198,19,-0.34,0,36,0.002,-0.082,0.084,8.32,8.76,6,32.3,28.2
+97,Mustafizur Rahman,"Bangladesh, Chennai Super Kings, Delhi Capitals",516,51,-0.38,1,52,0.018,0.096,-0.077,8.94,7.29,27,18.2,20.8
+98,Michael Bracewell,"New Zealand, Royal Challengers Bengaluru",171,19,-0.39,0,48,0.001,0.019,-0.018,8.1,7.88,8,20.8,16.5
+99,Dushmantha Chameera,"Delhi Capitals, Kolkata Knight Riders, Lucknow Super Giants",293,28,-0.39,0,52,-0.006,0.001,-0.007,9.35,8.68,17,16.4,20.8
+100,Luke Jongwe,Zimbabwe,177,14,-0.41,0,46,0.004,-0.032,0.036,9.24,9.31,9,18.3,16.5
+101,Dunith Wellalage,"Sri Lanka, Sri Lanka A",137,11,-0.43,0,42,-0.007,-0.012,0.005,7.25,8.64,6,22.3,14.1
+102,Tushar Deshpande,"Chennai Super Kings, India, Rajasthan Royals",246,27,-0.47,0,45,-0.005,-0.027,0.022,10.93,9.69,13,17.3,19.8
+103,Allah Ghazanfar,"Afghanistan, Afghanistan A, Kolkata Knight Riders",127,11,-0.48,0,43,0.001,-0.001,0.002,8.14,7.97,7,18.0,16.0
+104,Alzarri Joseph,"Gujarat Titans, Royal Challengers Bengaluru, West Indies",414,40,-0.53,0,41,-0.019,-0.081,0.062,9.48,9.89,25,15.8,23.0
+105,Odean Smith,"Gujarat Titans, Punjab Kings, West Indies",151,12,-0.57,0,43,-0.014,-0.056,0.042,9.88,10.87,9,15.4,15.3
+106,Reece Topley,"England, Mumbai Indians, Royal Challengers Bengaluru",147,15,-0.6,0,41,-0.01,0.002,-0.012,9.52,8.63,8,17.9,20.5
+107,Matheesha Pathirana,"Chennai Super Kings, Kolkata Knight Riders, Sri Lanka",353,29,-0.66,0,55,-0.004,0.128,-0.131,10.75,8.11,22,14.4,13.6
+108,Mukesh Kumar,"Delhi Capitals, India",323,42,-0.67,0,48,-0.024,-0.067,0.043,9.83,10.27,15,20.3,18.0
+109,Yuzvendra Chahal,"India, Punjab Kings, Rajasthan Royals",684,60,-0.7,0,40,-0.016,0.0,-0.017,8.78,8.55,39,16.9,17.4
+110,Harshal Patel,"India, Punjab Kings, Royal Challengers Bengaluru",519,45,-0.73,0,43,-0.013,0.001,-0.014,9.78,9.12,24,20.1,16.1
+111,Sean Abbott,"Australia, Sunrisers Hyderabad",213,15,-0.73,1,44,-0.003,-0.026,0.023,9.05,10.46,13,15.2,14.4
+112,Junaid Siddique,United Arab Emirates,142,13,-0.75,0,48,-0.008,0.035,-0.043,9.92,7.74,5,26.6,9.0
+113,Marco Jansen,"Punjab Kings, South Africa, Sunrisers Hyderabad",335,37,-0.76,1,40,-0.011,-0.041,0.03,10.27,9.48,14,22.0,22.9
+114,Roston Chase,West Indies,218,25,-0.77,0,42,-0.013,-0.02,0.007,8.09,7.78,8,26.2,23.1
+115,Naseem Shah,Pakistan,193,16,-0.83,0,34,-0.009,-0.047,0.039,9.78,8.46,10,18.1,24.7
+116,Rahul Chahar,"Chennai Super Kings, India A, Punjab Kings",190,21,-0.87,0,42,-0.01,0.0,-0.011,8.56,8.22,5,37.0,25.2
+117,Shadab Khan,Pakistan,245,19,-0.89,0,35,-0.012,-0.033,0.021,7.46,8.09,7,34.6,20.3
+118,Lungi Ngidi,"Delhi Capitals, Royal Challengers Bengaluru, South Africa",154,22,-0.91,0,39,-0.02,0.035,-0.055,9.91,8.65,8,18.6,16.6
+119,Cameron Green,"Australia, Kolkata Knight Riders, Mumbai Indians",199,22,-0.93,0,39,-0.019,-0.05,0.031,9.28,9.68,5,37.0,19.6
+120,Sandeep Sharma,"Punjab Kings, Rajasthan Royals",281,26,-0.97,0,41,-0.021,0.016,-0.037,10.76,8.39,15,17.1,29.4
+121,Chris Jordan,"Chennai Super Kings, England, Mumbai Indians",158,16,-0.98,0,34,-0.029,-0.082,0.052,11.13,9.33,6,25.3,30.6
+122,Liam Livingstone,"England, Punjab Kings, Royal Challengers Bengaluru",159,19,-1.01,0,42,-0.024,-0.061,0.037,9.14,9.85,5,30.2,16.4
+123,Adam Milne,"Chennai Super Kings, New Zealand, Rajasthan Royals",136,16,-1.01,0,40,-0.025,-0.001,-0.024,10.63,9.13,7,18.1,14.9
+124,Prasidh Krishna,"Gujarat Titans, India, Rajasthan Royals",313,32,-1.02,0,41,-0.008,0.032,-0.04,10.15,8.8,13,22.7,15.7
+125,Washington Sundar,"Gujarat Titans, India, Sunrisers Hyderabad",167,21,-1.05,0,36,-0.015,0.006,-0.022,8.34,8.08,4,41.0,17.8
+126,Mohammad Nabi,"Afghanistan, Kolkata Knight Riders, Mumbai Indians",216,20,-1.09,0,40,-0.026,-0.063,0.037,8.18,8.46,7,29.9,21.4
+127,Brad Evans,Zimbabwe,139,16,-1.22,0,38,-0.016,0.035,-0.05,11.0,8.22,12,11.0,16.1
+128,Mohit Sharma,"Delhi Capitals, Gujarat Titans",186,19,-1.26,0,30,-0.03,0.025,-0.055,11.43,8.97,14,12.7,16.8
+129,Andre Russell,"Kolkata Knight Riders, West Indies",260,32,-1.38,0,43,-0.038,-0.007,-0.03,11.61,10.64,15,16.3,10.9
+130,Anrich Nortje,"Delhi Capitals, Kolkata Knight Riders, Lucknow Super Giants",174,20,-1.4,0,32,-0.037,-0.083,0.046,10.99,10.16,6,27.7,22.3
+131,Hardik Pandya,"Gujarat Titans, India, Mumbai Indians",474,49,-1.56,0,33,-0.034,-0.055,0.022,9.17,9.01,23,19.5,22.6
+132,Azmatullah Omarzai,"Afghanistan, Gujarat Titans, Punjab Kings",354,38,-1.79,0,33,-0.04,0.027,-0.067,9.91,8.18,17,20.1,19.1
+133,Marcus Stoinis,"Australia, Lucknow Super Giants, Punjab Kings",319,33,-1.84,0,29,-0.048,0.006,-0.054,10.68,9.01,16,18.4,16.1
+134,Ravi Bishnoi,"India, Lucknow Super Giants, Rajasthan Royals",703,56,-2.17,0,52,-0.067,0.022,-0.089,8.7,8.2,24,27.7,16.6
+</script>
+<script type="text/csv" id="csv-calibration">
+pred,actual,n
+0.028,0.06,27217
+0.151,0.18,14406
+0.251,0.277,15068
+0.353,0.379,19153
+0.457,0.466,28355
+0.546,0.567,28318
+0.647,0.656,19678
+0.748,0.743,14639
+0.85,0.819,13359
+0.96,0.953,18836
+</script>
+<script type="text/csv" id="csv-summary">
+metric,value
+balls,200961.0
+matches,867.0
+pressure_balls,47896.0
+eligible_batters,124.0
+eligible_bowlers,134.0
+brier,0.177
+close_pressure_pct,93.2
+close_normal_pct,53.1
+wkt_pressure_pct,6.29
+wkt_normal_pct,5.4
+</script>
+<script type="text/csv" id="csv-phase">
+phase,share_pct
+Powerplay (1-6),21.8
+Middle (7-11),21.3
+Middle (12-15),21.3
+Death (16-20),35.7
+</script>
+<script>
+/* Minimal runtime: serves the embedded CSV data and redraws charts on load, resize and tab change. */
+window.dash = (function () {
+  const cache = {}; const draws = {};
+  function data(id) {
+    if (!cache[id]) {
+      const el = document.getElementById('csv-' + id);
+      if (!el || !window.d3) return { status: 'error', data: [] };
+      const rows = d3.csvParse(el.textContent.trim());
+      cache[id] = { status: 'ok', data: rows, columns: rows.columns };
+    }
+    return cache[id];
+  }
+  function run(name) {
+    document.querySelectorAll('[data-draw="' + name + '"]').forEach((el) => {
+      try { draws[name](el); } catch (e) { console.error('draw ' + name, e); }
+    });
+  }
+  function runAll() { Object.keys(draws).forEach(run); }
+  function draw(name, fn) { if (fn) draws[name] = fn; else if (draws[name]) run(name); }
+  function setLink(name) { history.replaceState(null, '', '#' + name); runAll(); }
+  let t; window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(runAll, 150); });
+  window.addEventListener('load', runAll);
+  return { data, draw, setLink, runAll, colors: [] };
+})();
+</script>
+<script>
+window.PL = (function () {
+  const PINK = '#EA1A85', BLUE = '#254AA5', MUTED = 'var(--cds-chart-muted)';
+  function ready(el, id) {
+    const d = dash.data(id);
+    if (d.status === 'ok') { el.classList.remove('dash-skeleton'); return d.data; }
+    el.replaceChildren();
+    if (d.status === 'loading') { el.classList.add('dash-skeleton'); }
+    else { el.classList.remove('dash-skeleton'); const p = document.createElement('div'); p.className = 'pl-fail'; p.textContent = d.status === 'connect' ? '' : 'Failed to load'; el.appendChild(p); }
+    return null;
+  }
+  function tip(el) {
+    const t = document.createElement('div'); t.className = 'pl-tip'; t.hidden = true; el.appendChild(t);
+    return {
+      show(ev, title, lines) {
+        t.replaceChildren();
+        const s = document.createElement('strong'); s.textContent = title; t.appendChild(s);
+        lines.forEach((l) => { const sp = document.createElement('span'); sp.textContent = l; t.appendChild(sp); });
+        t.hidden = false;
+        const r = el.getBoundingClientRect();
+        let x = ev.clientX - r.left + 12, y = ev.clientY - r.top + 12;
+        if (x + t.offsetWidth > r.width) x = Math.max(0, ev.clientX - r.left - t.offsetWidth - 12);
+        t.style.left = x + 'px'; t.style.top = y + 'px';
+      },
+      hide() { t.hidden = true; }
+    };
+  }
+  function measureLeft(svg, labels) {
+    const g = svg.append('g');
+    const w = d3.max(labels, (s) => g.append('text').attr('class', 'pl-name').text(s).node().getComputedTextLength()) || 90;
+    g.remove();
+    return Math.ceil(w) + 12;
+  }
+  function hbar(el, rows, o) {
+    el.replaceChildren();
+    const W = Math.max(280, el.clientWidth || 600), rh = o.rowH || 27, H = rows.length * rh + 26;
+    const svg = d3.select(el).append('svg').attr('width', '100%').attr('height', H).attr('viewBox', `0 0 ${W} ${H}`)
+      .attr('role', 'img').attr('aria-label', o.aria);
+    const ml = measureLeft(svg, rows.map(o.label));
+    const x = d3.scaleLinear().domain([0, d3.max(rows, o.value) * 1.05]).range([ml, W - 46]);
+    const t = tip(el);
+    const g = svg.selectAll('g.r').data(rows).join('g').attr('class', 'r').attr('transform', (d, i) => `translate(0,${i * rh})`);
+    g.append('text').attr('class', 'pl-name').attr('x', ml - 8).attr('y', rh / 2 + 4).attr('text-anchor', 'end').text(o.label);
+    g.append('rect').attr('x', ml).attr('y', 5).attr('height', rh - 10).attr('rx', 4)
+      .attr('width', (d) => Math.max(1, x(o.value(d)) - ml)).style('fill', (d, i) => (o.colorFn ? o.colorFn(d, i) : o.color));
+    g.append('text').attr('class', 'pl-val').attr('x', (d) => x(o.value(d)) + 5).attr('y', rh / 2 + 4).text((d) => o.fmt(o.value(d)));
+    g.append('rect').attr('x', 0).attr('y', 0).attr('width', W).attr('height', rh).style('fill', 'transparent')
+      .on('pointermove', (ev, d) => t.show(ev, o.label(d), o.tip(d))).on('pointerleave', () => t.hide());
+    svg.append('g').attr('transform', `translate(0,${rows.length * rh + 4})`)
+      .call(d3.axisBottom(x).ticks(Math.max(2, Math.floor((W - ml) / 80))).tickSizeOuter(0));
+  }
+  function dumbbell(el, rows, o) {
+    el.replaceChildren();
+    const W = Math.max(280, el.clientWidth || 600), rh = 27, H = rows.length * rh + 26;
+    const svg = d3.select(el).append('svg').attr('width', '100%').attr('height', H).attr('viewBox', `0 0 ${W} ${H}`)
+      .attr('role', 'img').attr('aria-label', o.aria);
+    const ml = measureLeft(svg, rows.map((d) => d.name));
+    const all = rows.flatMap((d) => [+d[o.a], +d[o.b]]);
+    const pad = (d3.max(all) - d3.min(all)) * 0.08;
+    const x = d3.scaleLinear().domain([d3.min(all) - pad, d3.max(all) + pad]).range([ml, W - 12]).nice();
+    const t = tip(el);
+    const g = svg.selectAll('g.r').data(rows).join('g').attr('class', 'r').attr('transform', (d, i) => `translate(0,${i * rh})`);
+    g.append('text').attr('class', 'pl-name').attr('x', ml - 8).attr('y', rh / 2 + 4).attr('text-anchor', 'end').text((d) => d.name);
+    g.append('line').attr('x1', (d) => x(+d[o.a])).attr('x2', (d) => x(+d[o.b])).attr('y1', rh / 2).attr('y2', rh / 2)
+      .style('stroke', 'var(--cds-chart-grid)').style('stroke-width', 3);
+    g.append('circle').attr('cx', (d) => x(+d[o.a])).attr('cy', rh / 2).attr('r', 5.5).style('fill', MUTED).style('stroke', 'var(--color-panel)').style('stroke-width', 2);
+    g.append('circle').attr('cx', (d) => x(+d[o.b])).attr('cy', rh / 2).attr('r', 6.5).style('fill', PINK).style('stroke', 'var(--color-panel)').style('stroke-width', 2);
+    g.append('rect').attr('x', 0).attr('y', 0).attr('width', W).attr('height', rh).style('fill', 'transparent')
+      .on('pointermove', (ev, d) => t.show(ev, d.name, o.tip(d))).on('pointerleave', () => t.hide());
+    svg.append('g').attr('transform', `translate(0,${rows.length * rh + 4})`)
+      .call(d3.axisBottom(x).ticks(Math.max(2, Math.floor((W - ml) / 70))).tickSizeOuter(0));
+  }
+  function table(tbody, rows, cols, limitSel) {
+    const v = (document.querySelector(limitSel) || {}).value || '10';
+    const shown = v === 'all' ? rows : rows.slice(0, +v);
+    tbody.replaceChildren();
+    shown.forEach((r) => {
+      const tr = document.createElement('tr');
+      if (+r.rank <= 10) tr.className = 'pl-top';
+      cols.forEach((c) => {
+        const td = document.createElement('td'); const val = r[c.f];
+        td.textContent = val == null || val === '' ? '–' : (c.fmt ? c.fmt(val) : val);
+        if (c.cls) { const k = c.cls(r); if (k) td.className = k; }
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+  }
+  return { PINK, BLUE, ready, hbar, dumbbell, table };
+})();
+</script>
+
+<script>
+(function () {
+  const f2 = d3.format('.2f'), f1 = d3.format('.1f'), fc = d3.format(',');
+  const top10 = (rows) => rows.filter((r) => +r.rank <= 10).sort((a, b) => a.rank - b.rank);
+
+  ['topbat', 'topbatscore', 'topbowl', 'topbowlscore'].forEach((name) => {
+    dash.draw(name, (el) => {
+      const src = name.startsWith('topbat') ? 'batters' : 'bowlers';
+      const d = dash.data(src);
+      if (d.status !== 'ok' || !d.data.length) { el.textContent = '—'; return; }
+      const r = d.data[0];
+      el.textContent = name.endsWith('score') ? f2(+r.pulse_score) : r.name;
+    });
+  });
+
+  dash.draw('kpi', (el) => {
+    const d = dash.data('summary');
+    if (d.status !== 'ok') { el.textContent = '—'; return; }
+    const m = (el.getAttribute('data-where') || '').split('=')[1];
+    const r = d.data.find((x) => x.metric === m);
+    if (!r) { el.textContent = '—'; return; }
+    const v = +r.value;
+    el.textContent = m === 'brier' ? v.toFixed(3) : m.endsWith('_pct') ? v.toFixed(1) + '%' : fc(v);
+  });
+
+  dash.draw('batbars', (el) => {
+    const rows = PL.ready(el, 'batters'); if (!rows) return;
+    PL.hbar(el, top10(rows), {
+      aria: 'Bar chart of PULSE scores for the top 10 batters under pressure',
+      label: (d) => d.name, value: (d) => +d.pulse_score, fmt: f2, color: PL.PINK,
+      colorFn: (d, i) => (i === 0 ? '#CBA92B' : PL.PINK),
+      tip: (d) => [`Rank ${d.rank} · PULSE ${f2(+d.pulse_score)}`, `${d.pressure_balls} pressure balls in ${d.pressure_innings} innings`,
+        `SR ${f1(+d.sr_pressure)} under pressure vs ${f1(+d.sr_normal)} normally`, `Consistency ${d.consistency_pct}% · top 10 in ${d.top10_pct}% of resamples`]
+    });
+  });
+  dash.draw('batdumb', (el) => {
+    const rows = PL.ready(el, 'batters'); if (!rows) return;
+    PL.dumbbell(el, top10(rows), {
+      aria: 'Strike rate in normal situations versus under pressure for the top 10 batters', a: 'sr_normal', b: 'sr_pressure',
+      tip: (d) => [`Under pressure: SR ${f1(+d.sr_pressure)}, avg ${d.avg_pressure || '–'}`, `Normal: SR ${f1(+d.sr_normal)}, avg ${d.avg_normal || '–'}`]
+    });
+  });
+  dash.draw('battable', (tb) => {
+    const d = dash.data('batters'); if (d.status !== 'ok') { tb.replaceChildren(); return; }
+    PL.table(tb, d.data, [
+      { f: 'rank' }, { f: 'name' }, { f: 'pulse_score', fmt: (v) => f2(+v) }, { f: 'pressure_balls' },
+      { f: 'sr_pressure', fmt: (v) => f1(+v), cls: (r) => (+r.sr_pressure > +r.sr_normal ? 'pl-up' : 'pl-down') }, { f: 'sr_normal', fmt: (v) => f1(+v) },
+      { f: 'avg_pressure', fmt: (v) => f1(+v), cls: (r) => (+r.avg_pressure > +r.avg_normal ? 'pl-up' : 'pl-down') }, { f: 'avg_normal', fmt: (v) => f1(+v) },
+      { f: 'consistency_pct' }, { f: 'top10_pct' }
+    ], '#bat-limit');
+  });
+
+  dash.draw('bowlbars', (el) => {
+    const rows = PL.ready(el, 'bowlers'); if (!rows) return;
+    PL.hbar(el, top10(rows), {
+      aria: 'Bar chart of PULSE scores for the top 10 bowlers under pressure',
+      label: (d) => d.name, value: (d) => +d.pulse_score, fmt: f2, color: PL.BLUE,
+      colorFn: (d, i) => (i === 0 ? '#CBA92B' : PL.BLUE),
+      tip: (d) => [`Rank ${d.rank} · PULSE ${f2(+d.pulse_score)}`, `${d.pressure_balls} pressure balls in ${d.pressure_innings} spells`,
+        `Economy ${f2(+d.econ_pressure)} under pressure vs ${f2(+d.econ_normal)} normally`, `${d.wkts_pressure} pressure wickets · top 10 in ${d.top10_pct}% of resamples`]
+    });
+  });
+  dash.draw('bowldumb', (el) => {
+    const rows = PL.ready(el, 'bowlers'); if (!rows) return;
+    PL.dumbbell(el, top10(rows), {
+      aria: 'Economy in normal situations versus under pressure for the top 10 bowlers', a: 'econ_normal', b: 'econ_pressure',
+      tip: (d) => [`Under pressure: economy ${f2(+d.econ_pressure)}, ${d.wkts_pressure} wickets`, `Normal: economy ${f2(+d.econ_normal)}`]
+    });
+  });
+  dash.draw('bowltable', (tb) => {
+    const d = dash.data('bowlers'); if (d.status !== 'ok') { tb.replaceChildren(); return; }
+    PL.table(tb, d.data, [
+      { f: 'rank' }, { f: 'name' }, { f: 'pulse_score', fmt: (v) => f2(+v) }, { f: 'pressure_balls' },
+      { f: 'econ_pressure', fmt: (v) => f2(+v), cls: (r) => (+r.econ_pressure < +r.econ_normal ? 'pl-up' : 'pl-down') }, { f: 'econ_normal', fmt: (v) => f2(+v) },
+      { f: 'wkts_pressure' }, { f: 'sr_pressure', fmt: (v) => f1(+v) }, { f: 'consistency_pct' }, { f: 'top10_pct' }
+    ], '#bowl-limit');
+  });
+
+  dash.draw('phase', (el) => {
+    const rows = PL.ready(el, 'phase'); if (!rows) return;
+    PL.hbar(el, rows, {
+      aria: 'Share of pressure balls by phase of the innings', rowH: 28,
+      label: (d) => d.phase, value: (d) => +d.share_pct, fmt: (v) => f1(v) + '%', color: PL.PINK,
+      tip: (d) => [`${f1(+d.share_pct)}% of all pressure balls`]
+    });
+  });
+
+  dash.draw('calib', (el) => {
+    const rows = PL.ready(el, 'calibration'); if (!rows) return;
+    el.replaceChildren();
+    const W = Math.max(280, el.clientWidth || 500), H = 280, m = { l: 44, r: 24, t: 10, b: 38 };
+    const svg = d3.select(el).append('svg').attr('width', '100%').attr('height', H).attr('viewBox', `0 0 ${W} ${H}`)
+      .attr('role', 'img').attr('aria-label', 'Predicted win probability against actual win rate, close to the diagonal');
+    const x = d3.scaleLinear().domain([0, 1]).range([m.l, W - m.r]), y = d3.scaleLinear().domain([0, 1]).range([H - m.b, m.t]);
+    svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(5, '%'));
+    svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5, '%'));
+    svg.append('text').attr('x', (m.l + W - m.r) / 2).attr('y', H - 4).attr('text-anchor', 'middle').text('Predicted win probability');
+    svg.append('line').attr('x1', x(0)).attr('y1', y(0)).attr('x2', x(1)).attr('y2', y(1))
+      .style('stroke', 'var(--cds-chart-reference)').style('stroke-dasharray', '4 4');
+    const pts = rows.map((d) => ({ p: +d.pred, a: +d.actual, n: +d.n }));
+    svg.append('path').datum(pts).attr('d', d3.line().x((d) => x(d.p)).y((d) => y(d.a)))
+      .style('fill', 'none').style('stroke', PL.PINK).style('stroke-width', 2);
+    const t = (function () { const tt = document.createElement('div'); tt.className = 'pl-tip'; tt.hidden = true; el.appendChild(tt); return tt; })();
+    svg.selectAll('circle').data(pts).join('circle').attr('cx', (d) => x(d.p)).attr('cy', (d) => y(d.a)).attr('r', 5)
+      .style('fill', PL.PINK).style('stroke', 'var(--color-panel)').style('stroke-width', 2)
+      .on('pointermove', (ev, d) => {
+        t.replaceChildren();
+        const s = document.createElement('strong'); s.textContent = `Predicted ${(d.p * 100).toFixed(1)}%`; t.appendChild(s);
+        const a = document.createElement('span'); a.textContent = `Actually won ${(d.a * 100).toFixed(1)}%`; t.appendChild(a);
+        const n = document.createElement('span'); n.textContent = `${fc(d.n)} balls`; t.appendChild(n);
+        t.hidden = false; const r = el.getBoundingClientRect();
+        let lx = ev.clientX - r.left + 12; if (lx + 180 > r.width) lx -= 200;
+        t.style.left = lx + 'px'; t.style.top = (ev.clientY - r.top + 12) + 'px';
+      })
+      .on('pointerleave', () => { t.hidden = true; });
+  });
+
+
+  const showTab = (name) => {
+    document.querySelectorAll('.pl-sec').forEach((s) => { s.hidden = s.id !== name; });
+    document.querySelectorAll('.pl-tab').forEach((b) => {
+      const on = b.getAttribute('data-tab') === name;
+      b.classList.toggle('pl-on', on); b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+  };
+  document.querySelectorAll('.pl-tab').forEach((b) => b.addEventListener('click', () => {
+    const name = b.getAttribute('data-tab'); showTab(name); dash.setLink(name);
+  }));
+  const h = (location.hash || '').slice(1);
+  if (['batters', 'bowlers', 'method'].includes(h)) showTab(h);
+  document.querySelectorAll('#bat-limit').forEach((s) => s.addEventListener('change', () => dash.draw('battable')));
+  document.querySelectorAll('#bowl-limit').forEach((s) => s.addEventListener('change', () => dash.draw('bowltable')));
+})();
+</script>
+
+</body>
+</html>
